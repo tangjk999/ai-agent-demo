@@ -1,27 +1,34 @@
-from pydantic_ai import Agent
-from pydantic_ai import DeepSeekModel
-
-from dotenv import load_dotenv
-import tools
 import os
-import getpass
+from dotenv import load_dotenv
+from deepseek_llm import DeepSeekLLM
 
 load_dotenv()
-model = DeepSeekModel("deepseek-chat", api_key=getpass.getpass("请输入API密钥: "))
+api_key = os.getenv("DEEPSEEK_API_KEY") or input("请输入DeepSeek API密钥: ")
 
-agent = Agent(model,
-              system_prompt="You are an experienced programmer",
-              tools=[tools.read_file, tools.list_files, tools.rename_file])
+llm = DeepSeekLLM(api_key=api_key)
 
 def main():
     history = []
+    print("输入 exit 退出")
     while True:
         user_input = input("Input: ")
-        resp = agent.run_sync(user_input,
-                              message_history=history)
-        history = list(resp.all_messages())
-        print(resp.output)
-
+        if user_input.strip().lower() in {"exit", "quit"}:
+            break
+        if not user_input.strip():
+            print("输入不能为空，请重新输入。")
+            continue
+        # 构造历史对话
+        prompt = ""
+        for msg in history:
+            if msg["role"] == "user":
+                prompt += f"用户：{msg['content']}\n"
+            else:
+                prompt += f"助手：{msg['content']}\n"
+        prompt += f"用户：{user_input}\n助手："
+        reply = llm.invoke(prompt)
+        print("DeepSeek:", reply)
+        history.append({"role": "user", "content": user_input})
+        history.append({"role": "assistant", "content": reply})
 
 if __name__ == "__main__":
     main()
